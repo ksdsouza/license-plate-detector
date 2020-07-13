@@ -3,7 +3,6 @@ import os
 import sys
 
 import cv2
-import matplotlib.pyplot as plt
 import numpy as np
 
 from SelectiveSearch import SelectiveSearch
@@ -20,40 +19,18 @@ SS_IMG_SIZE = (224, 224)
 
 chunk = int(sys.argv[1])
 
-
-class Annotation:
-    def __init__(self, file: str):
-        f = open(file)
-        [filename, x1, y1, dx, dy] = f.readline().split('\t')[0:5]
-        f.close()
-
-        self.img_filename = os.path.join(images_path, filename)
-        self.boundary_box = {
-            'x1': int(x1),
-            'y1': int(y1),
-            'x2': int(x1) + int(dx),
-            'y2': int(y1) + int(dy)
-        }
-
-
-def show_annotated_boundaries():
-    for e, file in enumerate(itertools.islice(os.listdir(annotations), 10)):
-        annotation = Annotation(os.path.join(annotations, file))
-        img = cv2.imread(annotation.img_filename)
-        plt.imshow(img)
-
-        boundary_box = annotation.boundary_box
-        cv2.rectangle(
-            img=img,
-            pt1=(boundary_box['x1'], boundary_box['y1']),
-            pt2=(boundary_box['x2'], boundary_box['y2']),
-            color=(255, 0, 0),
-            thickness=2
-        )
-        plt.figure()
-        plt.imshow(img)
-        plt.savefig(f'test_img_{annotation}.jpg')
-    plt.show()
+def get_annotation(file: str) -> (dict, object):
+    f = open(file)
+    [filename, x1, y1, dx, dy] = f.readline().split('\t')[0:5]
+    f.close()
+    img_filename = os.path.join(images_path, filename)
+    boundary_box = {
+        'x1': int(x1),
+        'y1': int(y1),
+        'x2': int(x1) + int(dx),
+        'y2': int(y1) + int(dy)
+    }
+    return boundary_box, img_filename
 
 def get_iou(bb1, bb2):
     x_left = max(bb1['x1'], bb2['x1'])
@@ -83,16 +60,13 @@ filenames = list(enumerate(
 for index, file in filenames:
     try:
         print(f"{index}\t{file}")
-        annotation = Annotation(os.path.join(annotations, file))
-        ss_results, img_out = selective_search.process_image(annotation.img_filename)
-        boundary_box = annotation.boundary_box
-        counter = 0
-        falsecounter = 0
-        fflag = 0
-        bflag = 0
+        boundary_box, img_filename = get_annotation(os.path.join(annotations, file))
+        ss_results, img_out = selective_search.process_image(img_filename)
+        lp_counter = 0
+        bg_counter = 0
+        fflag = False
+        bflag = False
 
-        images = []
-        labels = []
         for result in itertools.islice(ss_results, 2000):
             x1, y1, dx, dy = result
 
@@ -103,29 +77,26 @@ for index, file in filenames:
                 'y2': y1 + dy
             })
 
-            if counter < 30:
+            if lp_counter < 30:
                 if iou > 0.85:
                     test_image = img_out[y1: y1 + dy, x1:x1 + dx]
                     resized = cv2.resize(test_image, SS_IMG_SIZE, interpolation=cv2.INTER_AREA)
-                    images.append(resized)
-                    labels.append(1)
-                    counter += 1
+                    train_images.append(resized)
+                    train_labels.append(1)
+                    lp_counter += 1
             else:
-                fflag = 1
-            if falsecounter < 30:
+                fflag = True
+            if bg_counter < 30:
                 if iou < 0.3:
                     test_image = img_out[y1: y1 + dy, x1:x1 + dx]
                     resized = cv2.resize(test_image, SS_IMG_SIZE, interpolation=cv2.INTER_AREA)
-                    images.append(resized)
-                    labels.append(0)
-                    falsecounter += 1
+                    train_images.append(resized)
+                    train_labels.append(0)
+                    bg_counter += 1
             else:
-                bflag = 1
-            if fflag == 1 and bflag == 1:
+                bflag = True
+            if fflag and bflag:
                 break
-        if counter != 0:
-            train_images.extend(images)
-            train_labels.extend(labels)
         else:
             print("Skipping")
     except Exception as e:
