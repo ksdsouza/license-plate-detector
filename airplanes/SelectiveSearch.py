@@ -8,7 +8,7 @@ class SelectiveSearch:
         self.SS_IMG_SIZE = (224, 224)
 
     def process_image(self, path: str):
-        image = cv2.imread(path)
+        image = cv2.cvtColor(cv2.imread(path), cv2.COLOR_BGR2RGB)
         self.selective_search.setBaseImage(image)
         self.selective_search.switchToSelectiveSearchFast()
         return self.selective_search.process(), image.copy()

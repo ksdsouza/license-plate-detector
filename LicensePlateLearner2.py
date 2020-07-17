@@ -47,7 +47,7 @@ else:
     vggmodel = VGG16(weights='imagenet', include_top=True)
     vggmodel.summary()
 
-    for layers in vggmodel.layers[:15]:
+    for layers in vggmodel.layers[:5]:
         print(layers)
         layers.trainable = False
 
@@ -81,7 +81,7 @@ checkpoint = ModelCheckpoint(
 early = EarlyStopping(monitor='val_loss', min_delta=0.000001, patience=20, verbose=1, mode='auto')
 
 hist = model_final.fit(traindata,
-                       steps_per_epoch=30,
+                       steps_per_epoch=40,
                        epochs=100,
                        validation_data=testdata,
                        validation_steps=30,

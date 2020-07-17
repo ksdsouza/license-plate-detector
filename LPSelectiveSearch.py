@@ -17,7 +17,8 @@ train_labels = []
 
 SS_IMG_SIZE = (224, 224)
 
-chunk = int(sys.argv[1])
+# chunk = int(sys.argv[1])
+
 
 def get_annotation(file: str) -> (dict, object):
     f = open(file)
@@ -32,7 +33,8 @@ def get_annotation(file: str) -> (dict, object):
     }
     return boundary_box, img_filename
 
-def get_iou(bb1, bb2):
+
+def get_iou(bb1: dict, bb2: dict) -> float:
     x_left = max(bb1['x1'], bb2['x1'])
     y_top = max(bb1['y1'], bb2['y1'])
     x_right = min(bb1['x2'], bb2['x2'])
@@ -52,57 +54,55 @@ def get_iou(bb1, bb2):
     return iou
 
 
-filenames = list(enumerate(
-    f for f in os.listdir(annotations)
-    if f.startswith('wts')
-))[chunk * 20:(chunk + 1) * 20]
-
-for index, file in filenames:
-    try:
-        print(f"{index}\t{file}")
-        boundary_box, img_filename = get_annotation(os.path.join(annotations, file))
-        ss_results, img_out = selective_search.process_image(img_filename)
-        lp_counter = 0
-        bg_counter = 0
-        fflag = False
-        bflag = False
-
-        for result in itertools.islice(ss_results, 2000):
-            x1, y1, dx, dy = result
-
-            iou = get_iou(boundary_box, {
-                'x1': x1,
-                'y1': y1,
-                'x2': x1 + dx,
-                'y2': y1 + dy
-            })
-
-            if lp_counter < 30:
-                if iou > 0.85:
-                    test_image = img_out[y1: y1 + dy, x1:x1 + dx]
-                    resized = cv2.resize(test_image, SS_IMG_SIZE, interpolation=cv2.INTER_AREA)
-                    train_images.append(resized)
-                    train_labels.append(1)
-                    lp_counter += 1
-            else:
-                fflag = True
-            if bg_counter < 30:
-                if iou < 0.3:
-                    test_image = img_out[y1: y1 + dy, x1:x1 + dx]
-                    resized = cv2.resize(test_image, SS_IMG_SIZE, interpolation=cv2.INTER_AREA)
-                    train_images.append(resized)
-                    train_labels.append(0)
-                    bg_counter += 1
-            else:
-                bflag = True
-            if fflag and bflag:
-                break
-        else:
-            print("Skipping")
-    except Exception as e:
-        print(e)
-        print(f"Error occurred in {file}")
-
-
-np.save(f'train_images_chunk{chunk}', train_images)
-np.save(f'train_labels_chunk{chunk}', train_labels)
+# filenames = list(enumerate(
+#     f for f in os.listdir(annotations)
+#     if f.startswith('wts')
+# ))[chunk * 20:(chunk + 1) * 20]
+#
+# for index, file in filenames:
+#     try:
+#         print(f"{index}\t{file}")
+#         boundary_box, img_filename = get_annotation(os.path.join(annotations, file))
+#         ss_results, img_out = selective_search.process_image(img_filename)
+#         lp_counter = 0
+#         bg_counter = 0
+#         fflag = False
+#         bflag = False
+#
+#         for result in itertools.islice(ss_results, 2000):
+#             x1, y1, dx, dy = result
+#             if file.startswith('wts_textonly'):
+#                 iou = 0
+#             else:
+#                 iou = get_iou(boundary_box, {
+#                     'x1': x1,
+#                     'y1': y1,
+#                     'x2': x1 + dx,
+#                     'y2': y1 + dy
+#                 })
+#             if bg_counter < 30:
+#                 if iou < 0.3:
+#                     test_image = img_out[y1: y1 + dy, x1:x1 + dx]
+#                     resized = cv2.resize(test_image, SS_IMG_SIZE, interpolation=cv2.INTER_AREA)
+#                     train_images.append(resized)
+#                     train_labels.append(0)
+#                     bg_counter += 1
+#             else:
+#                 bflag = True
+#             if lp_counter < 30:
+#                 if iou > 0.85:
+#                     test_image = img_out[y1: y1 + dy, x1:x1 + dx]
+#                     resized = cv2.resize(test_image, SS_IMG_SIZE, interpolation=cv2.INTER_AREA)
+#                     train_images.append(resized)
+#                     train_labels.append(1)
+#                     lp_counter += 1
+#             else:
+#                 fflag = True
+#             if fflag and bflag:
+#                 break
+#     except Exception as e:
+#         print(e)
+#         print(f"Error occurred in {file}")
+#
+# np.save(f'train_images_chunk{chunk}', train_images)
+# np.save(f'train_labels_chunk{chunk}', train_labels)
