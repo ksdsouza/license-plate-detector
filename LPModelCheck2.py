@@ -15,7 +15,7 @@ selective_search = SelectiveSearch()
 images_path = "Images"
 average_ious = []
 f = open("results.csv", "w")
-f.write("filename,hit_avg_iou,hit_num,false_pos_avg_iou,false_pos_num,false_neg_avg_iou,false_neg_count,miss_avg_iou,miss_count\n")
+f.write("filename,hit_avg_iou,hit_num,false_pos_avg_iou,false_pos_num,false_neg_avg_iou,false_neg_count,miss_avg_iou,miss_count,best_iou,best_hit_iou\n")
 
 for e, file in enumerate(f for f in os.listdir(images_path) if f.startswith("car")):
     print(f"{e}\t{file}")
@@ -30,6 +30,8 @@ for e, file in enumerate(f for f in os.listdir(images_path) if f.startswith("car
     fneg_ious = [] #LP false negative
     fpos_ious = [] #non-LP false positive
     miss_ious = [] #non-LP correctly identified
+    best_iou = 0
+    best_hit_iou = 0
 
     boundary_box, img_filename = get_annotation(f'{os.path.join(annotations, filename)}.txt')
 
@@ -50,10 +52,15 @@ for e, file in enumerate(f for f in os.listdir(images_path) if f.startswith("car
 
         # print("IoU: {:.4f}".format(iou))
 
+        if iou > best_iou:
+            best_iou = iou
+
         if out[0][0] >= 0.85:
             cv2.rectangle(img_out, (x, y), (x + w, y + h), (0, 255, 0), 1, cv2.LINE_AA)
             if iou >= iou_threshold:
                 hit_ious.append(iou)
+                if iou > best_hit_iou:
+                    best_hit_iou = iou
             else:
                 fpos_ious.append(iou)
         else:
@@ -67,7 +74,7 @@ for e, file in enumerate(f for f in os.listdir(images_path) if f.startswith("car
     avg_fneg = sum(fneg_ious) / len(fneg_ious) if len(fneg_ious) > 0 else 0
     avg_miss = sum(miss_ious) / len(miss_ious) if len(miss_ious) > 0 else 0
 
-    result = f"{file},{avg_hit:.4f},{len(hit_ious)},{avg_fpos:.4f},{len(fpos_ious)},{avg_fneg:.4f},{len(fneg_ious)},{avg_miss:.4f},{len(miss_ious)}\n"
+    result = f"{file},{avg_hit:.4f},{len(hit_ious)},{avg_fpos:.4f},{len(fpos_ious)},{avg_fneg:.4f},{len(fneg_ious)},{avg_miss:.4f},{len(miss_ious)},{best_iou},{best_hit_iou}\n"
     print(result)
     f.write(result)
     f.flush()
